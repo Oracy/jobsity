@@ -1,0 +1,14 @@
+version: "3"
+services:
+  metabase-app:
+    image: metabase/metabase
+    restart: always
+    ports:
+      - 3000:3000
+    volumes:
+      - ./data:/metabase-data
+
+networks:
+  default:
+    external:
+      name: data_source_postgres-compose-network

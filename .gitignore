@@ -1,0 +1,8 @@
+*.pyc
+__pycache__
+*.parquet
+airflow/logs/*
+!airflow/logs/.gitkeep
+debug_notebooks/files/*
+!debug_notebooks/files/.gitkeep
+debug_notebooks/.ipynb_checkpoints
