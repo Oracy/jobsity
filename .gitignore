@@ -6,3 +6,4 @@ airflow/logs/*
 debug_notebooks/files/*
 !debug_notebooks/files/.gitkeep
 debug_notebooks/.ipynb_checkpoints
+airflow/dags/airflow_dags/jobsity/files/consume/*
