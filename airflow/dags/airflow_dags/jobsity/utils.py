@@ -1,12 +1,13 @@
-import pandas as pd
 import shutil
-
-from typing import Any, Dict, List
 from datetime import datetime
-from airflow import DAG
-from airflow.utils.task_group import TaskGroup
+from typing import Any, Dict, List
+
+import pandas as pd
 from airflow.providers.postgres.operators.postgres import PostgresOperator
+from airflow.utils.task_group import TaskGroup
 from functions_utils.utils import write_parquet_to_postgres
+
+from airflow import DAG
 
 
 def drop_duplicated(df: pd.DataFrame) -> pd.DataFrame:
@@ -19,7 +20,7 @@ def drop_duplicated(df: pd.DataFrame) -> pd.DataFrame:
         A DataFrame without duplicated values.
     """
     # Trips with similar origin, destination, and time of day should be grouped together.
-    df = df.drop_duplicates(subset = ["origin_coord", "destination_coord", "datetime"])
+    df = df.drop_duplicates(subset=["origin_coord", "destination_coord", "datetime"])
     return df
 
 
@@ -32,7 +33,7 @@ def convert_datetime_type(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         A DataFrame with datetime column as datetime type.
     """
-    df['datetime'] = pd.to_datetime(df['datetime'])
+    df["datetime"] = pd.to_datetime(df["datetime"])
     return df
 
 
@@ -45,10 +46,10 @@ def remove_characters(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         A DataFrame without POINT (*) on columns origin_coord and destination_coord.
     """
-    df['origin_coord'] = df['origin_coord'].str.replace('POINT \(', '', regex=True)
-    df['origin_coord'] = df['origin_coord'].str.replace('\)', '', regex=True)
-    df['destination_coord'] = df['destination_coord'].str.replace('POINT \(', '', regex=True)
-    df['destination_coord'] = df['destination_coord'].str.replace('\)', '', regex=True)
+    df["origin_coord"] = df["origin_coord"].str.replace("POINT \(", "", regex=True)
+    df["origin_coord"] = df["origin_coord"].str.replace("\)", "", regex=True)
+    df["destination_coord"] = df["destination_coord"].str.replace("POINT \(", "", regex=True)
+    df["destination_coord"] = df["destination_coord"].str.replace("\)", "", regex=True)
     return df
 
 
@@ -62,8 +63,10 @@ def create_long_lat(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         A DataFrame with 4 new columns lat_origin, long_origin, lat_destination, long_destination.
     """
-    df[['lat_origin', 'long_origin']] = df['origin_coord'].str.split(' ', 1, expand=True)
-    df[['lat_destination', 'long_destination']] = df['destination_coord'].str.split(' ', 1, expand=True)
+    df[["lat_origin", "long_origin"]] = df["origin_coord"].str.split(" ", 1, expand=True)
+    df[["lat_destination", "long_destination"]] = df["destination_coord"].str.split(
+        " ", 1, expand=True
+    )
     return df
 
 
@@ -76,7 +79,7 @@ def remove_excedent_columns(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         A DataFrame without columns origin_coord and destination_coord.
     """
-    df = df.drop(labels=['origin_coord', 'destination_coord'], axis=1)
+    df = df.drop(labels=["origin_coord", "destination_coord"], axis=1)
     return df
 
 
@@ -91,8 +94,8 @@ def create_week_of_year_by_area(df: pd.DataFrame) -> pd.DataFrame:
         A DataFrame with columns region, weekofyear and count.
     """
     # Develop a way to obtain the weekly average number of trips for an area, defined by a bounding box (given by coordinates) or by a region.
-    df['weekofyear'] = df['datetime'].dt.isocalendar().week
-    trips_by_area = df.groupby(["region", "weekofyear"]).size().reset_index(name='count')
+    df["weekofyear"] = df["datetime"].dt.isocalendar().week
+    trips_by_area = df.groupby(["region", "weekofyear"]).size().reset_index(name="count")
     return trips_by_area
 
 
@@ -126,7 +129,7 @@ def create_tables_group_task(
 
 def create_chunk_data(**kwargs: Dict[str, Any]) -> pd.DataFrame:
     """Split large csv file into chunks, pre processing with functions above.
-    
+
     Args:
         **task_instance: task instance to push xcom.
         **file_path: file path to load data.
@@ -134,7 +137,7 @@ def create_chunk_data(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         **chunk_size: chunks size, can pass by parameter, or receive default value
 
     Returns:
-        New df with limited size 
+        New df with limited size
     """
     ti = kwargs.get("task_instance")
     file_path = kwargs.get("file_path")
@@ -150,17 +153,25 @@ def create_chunk_data(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         df_remove_characters = remove_characters(df_convert_datetime)
         df_create_long_lat = create_long_lat(df_remove_characters)
         df_remove_excedent_columns = remove_excedent_columns(df_create_long_lat)
-        df_remove_excedent_columns.to_parquet(f"{file_path}/chunks/{file_name}_{date_time}_{part}.parquet", engine='pyarrow', index=False)
+        df_remove_excedent_columns.to_parquet(
+            f"{file_path}/chunks/{file_name}_{date_time}_{part}.parquet",
+            engine="pyarrow",
+            index=False,
+        )
         df_week_of_year_by_area = create_week_of_year_by_area(df_remove_excedent_columns)
-        df_week_of_year_by_area.to_parquet(f"{file_path}/chunks/{file_name}_df_week_of_year_by_area_{date_time}_{part}.parquet", engine='pyarrow', index=False)
-        part+=1
-    ti.xcom_push(key="chunks_count", value=part-1)
+        df_week_of_year_by_area.to_parquet(
+            f"{file_path}/chunks/{file_name}_df_week_of_year_by_area_{date_time}_{part}.parquet",
+            engine="pyarrow",
+            index=False,
+        )
+        part += 1
+    ti.xcom_push(key="chunks_count", value=part - 1)
     move_files(file_path, file_name, date_time)
 
 
 def move_files(file_path: str, file_name: str, information: str, chunk=0) -> None:
     """Move file from consule to done foldes.
-    
+
     Args:
         file_path: file path to save data.
         file_name: file name to save data.
@@ -173,7 +184,7 @@ def move_files(file_path: str, file_name: str, information: str, chunk=0) -> Non
     if chunk:
         src_path = f"{file_path}/{file_name}"
         dst_path = f"{file_path}/../../done/chunks/{information}_{file_name}"
-    else: 
+    else:
         src_path = f"{file_path}/{file_name}.csv"
         dst_path = f"{file_path}/../done/{file_name}_{information}.csv"
     shutil.move(src_path, dst_path)
@@ -181,7 +192,7 @@ def move_files(file_path: str, file_name: str, information: str, chunk=0) -> Non
 
 def load_chunks(**kwargs: Dict[str, Any]):
     """Load chunks to Postgres.
-    
+
     Args:
         **relative_path: file path to save data.
         **file_name: file name to save data.
@@ -193,4 +204,4 @@ def load_chunks(**kwargs: Dict[str, Any]):
     file_path = kwargs.get("relative_path")
     for file_name in files_name:
         write_parquet_to_postgres(file_name, **kwargs)
-        move_files(file_path, file_name, 'processed', 1)
+        move_files(file_path, file_name, "processed", 1)

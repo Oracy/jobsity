@@ -5,9 +5,10 @@ from typing import Any, Dict, List, Union
 import pandas as pd
 from airflow.models import XCom
 from airflow.utils.db import provide_session
+from sqlalchemy import create_engine
 
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookOperator  # isort:skip
-from sqlalchemy import create_engine
+
 
 logger = logging.getLogger("Airflow Utils")
 
@@ -105,7 +106,7 @@ def get_file_names(files_path: str, folder_name: str) -> List[Union[List[str], L
     for root, directories, files in os.walk(files_path):
         if folder_name in root:
             files_name = files
-    files_name_regexp = [ name.replace(".sql", "") for name in files_name]
+    files_name_regexp = [name.replace(".sql", "") for name in files_name]
     return files_name_regexp
 
 
@@ -119,7 +120,9 @@ def write_parquet_to_postgres(file_name: str, **kwargs: Dict[str, Any]) -> None:
         Only a f-string with which table were inserted. For example:
         trips Writed!
     """
-    table_insert = kwargs.get("table_insert") if 'week_of_year_by_area' not in file_name else "trips_by_area_"
+    table_insert = (
+        kwargs.get("table_insert") if "week_of_year_by_area" not in file_name else "trips_by_area_"
+    )
     step = kwargs.get("step")
     df: pd.DataFrame = read_parquet(file_name, **kwargs)
     engine = create_engine("postgresql://postgres:postgres@172.19.0.2:5432/postgres")

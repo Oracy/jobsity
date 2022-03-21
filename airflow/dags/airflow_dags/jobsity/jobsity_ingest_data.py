@@ -2,13 +2,13 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from airflow import DAG
+from airflow.contrib.sensors.file_sensor import FileSensor
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.email_operator import EmailOperator
-from airflow.contrib.sensors.file_sensor import FileSensor
-from airflow.operators.python_operator import PythonOperator
-from airflow.operators.python_operator import PythonOperator
 from airflow.operators.postgres_operator import PostgresOperator
+from airflow.operators.python_operator import PythonOperator
+
+from airflow import DAG
 
 from functions_utils.utils import (  # isort:skip
     alert_slack_channel,
@@ -74,12 +74,12 @@ with dag:
     consume_new_file_tasks = []
     for file in files:
         consume_new_file_task = FileSensor(
-            task_id= f"Consume_{file}_sensor",
-            poke_interval= 30,
-            filepath= f'{files_path}/consume/{file}.csv'
-            )
+            task_id=f"Consume_{file}_sensor",
+            poke_interval=30,
+            filepath=f"{files_path}/consume/{file}.csv",
+        )
         consume_new_file_tasks.append(consume_new_file_task)
-    
+
     create_stg_table_task = DummyOperator(task_id="create_stg_table")
 
     create_table_tasks_group_stg = create_tables_group_task(
@@ -104,9 +104,9 @@ with dag:
         python_callable=create_chunk_data,
         op_kwargs={
             "chunk_size": 10,
-            "file_path": f'{files_path}/consume',
+            "file_path": f"{files_path}/consume",
             # "file_name": 'big_trips',
-            "file_name": 'trips',
+            "file_name": "trips",
         },
         dag=dag,
     )
@@ -116,7 +116,7 @@ with dag:
         provide_context=True,
         python_callable=load_chunks,
         op_kwargs={
-            "relative_path": f'{files_path}/consume/chunks',
+            "relative_path": f"{files_path}/consume/chunks",
             "files_name": load_chunks_names,
             "table_insert": "trips_",
             "step": "stg",
