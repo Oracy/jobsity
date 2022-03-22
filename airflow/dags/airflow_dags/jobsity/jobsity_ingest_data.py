@@ -4,7 +4,6 @@ from pathlib import Path
 
 from airflow.contrib.sensors.file_sensor import FileSensor
 from airflow.operators.dummy import DummyOperator
-from airflow.operators.email_operator import EmailOperator
 from airflow.operators.postgres_operator import PostgresOperator
 from airflow.operators.python_operator import PythonOperator
 
@@ -70,8 +69,8 @@ with dag:
     start_flow_task = DummyOperator(task_id="start_flow")
 
     # files = ["trips", "big_trips"]
-    # files = ["big_trips"] # 1200000
-    files = ["trips"] # 100
+    files = ["big_trips"] # 1200000
+    # files = ["trips"] # 100
     consume_new_file_tasks = []
     for file in files:
         consume_new_file_task = FileSensor(
@@ -104,10 +103,10 @@ with dag:
         provide_context=True,
         python_callable=create_chunk_data,
         op_kwargs={
-            "chunk_size": 10,
+            "chunk_size": 100000,
             "file_path": f"{files_path}/consume",
-            # "file_name": 'big_trips',
-            "file_name": "trips",
+            "file_name": 'big_trips',
+            # "file_name": "trips",
         },
         dag=dag,
     )

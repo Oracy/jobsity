@@ -125,7 +125,7 @@ def write_parquet_to_postgres(file_name: str, **kwargs: Dict[str, Any]) -> None:
     )
     step = kwargs.get("step")
     df: pd.DataFrame = read_parquet(file_name, **kwargs)
-    engine = create_engine("postgresql://postgres:postgres@172.19.0.2:5432/postgres")
+    engine = create_engine("postgresql://postgres:postgres@172.20.0.2:5432/postgres")
     df.to_sql(f"{table_insert}{step}", engine, if_exists="append", index=False)
 
 
