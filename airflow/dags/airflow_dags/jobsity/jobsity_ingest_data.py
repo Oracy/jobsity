@@ -70,8 +70,8 @@ with dag:
     start_flow_task = DummyOperator(task_id="start_flow")
 
     # files = ["trips", "big_trips"]
-    files = ["big_trips"]
-    # files = ["trips"]
+    # files = ["big_trips"] # 1200000
+    files = ["trips"] # 100
     consume_new_file_tasks = []
     for file in files:
         consume_new_file_task = FileSensor(
@@ -104,10 +104,10 @@ with dag:
         provide_context=True,
         python_callable=create_chunk_data,
         op_kwargs={
-            "chunk_size": 100000,
+            "chunk_size": 10,
             "file_path": f"{files_path}/consume",
-            "file_name": 'big_trips',
-            # "file_name": "trips",
+            # "file_name": 'big_trips',
+            "file_name": "trips",
         },
         dag=dag,
     )
